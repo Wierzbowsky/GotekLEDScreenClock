@@ -9,7 +9,7 @@ About
 This is the the self-made clock that was created from salvaged Gotek's 7-segment LED screen boards. The original Gotek
 screen boards need to be dismantled and all parts (IC, screen, capacitor) are used to create a single or combined
 indicator panel with the help of tiny circuit boards that can be joined together. These boards share all signals except
-for DIO. Each DIO pin is connected to the corresponding pin of the Arduino Nano or Uno board. This particular clock
+for DIO. Each DIO pin is connected to the corresponding pin of the Arduino Mini, Nano or Uno board. This particular clock
 has 6 screens joined together.
 
 The screens can display decimal and hexadecimal numbers with or without prepending zeroes, single digits and characters

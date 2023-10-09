@@ -1,13 +1,16 @@
 //****************************************************************
+// GOCLOCK (Gotek Clock)
 // Clock/calendar based on salvaged Gotek LED board with TM1651 chip
 //
 // Author:	  Alex Wierzbowsky
 // Mail:	  	wierzbowsky@rbsc.su
 // Hardware:	Re-used Gotek 3-digit LED screens on custom boards
-// Board:   	Arduino UNO R2
+// Board:   	Arduino Nano
 // IDE:       Arduino
 // Function:	Clock and calendar
-// Date:		  04.03.2023
+// Date:		  06.10.2023
+// Version:   1.0 Build 0003
+// IDE:       Arduino-1.8.19
 //
 // Portions:  Paul Brace - Feb 2021
 //
@@ -23,8 +26,8 @@
 #include "GotekSaver.h"
 
 // Define pins
-#define Btnpin 13   // button pin
-#define Buzzpin 12  // buzzer pin
+#define Btnpin 10   // button pin
+#define Buzzpin 9   // buzzer pin
 #define Clockpin 2  // clock pin
 #define Maxchars 9  // max characters on a display
 #define Dispchars 3 // width of display
@@ -37,14 +40,15 @@ uint8_t millisecond;
 uint8_t date;
 uint8_t month;
 uint8_t year;
-uint8_t currentbrt = 2;
-unsigned long timer;
+uint8_t currentbrt = 1;                 // Middle brightness by default
+unsigned long timer, elapsed;
 uint8_t beep = 0;
 uint8_t autobrt = 0;
-signed long adjust = 0;  // ADJUST for inaccurate Arduino's clock
+signed long adjust = 0;                 // ADJUST for inaccurate Arduino's clock, multiplied and added/deducted every minute
+signed long multiplier = 10;            // MULTIPLIER for clock adjust
 char buffer[Maxchars+2];
-uint8_t currentMode = 0;  // Turns to 1 when time/date is set
-volatile unsigned long currentTime;    //   Duration in milliseconds from midnight
+uint8_t currentMode = 0;                // 1 when time/date is set; 0 - clock is running
+volatile unsigned long currentTime = 0; //   Duration in milliseconds from midnight
 unsigned long pushdelay = 0;
 
 
@@ -53,18 +57,18 @@ unsigned long pushdelay = 0;
 //
 void setup()
 {
- // Set up  time interrupt - millis() rolls over after 50 days so
-  // we are using our own millisecond counter which we can reset at
- // the   end of each day
- TCCR0A = (1 << WGM01);      //Set the CTC mode Compare time   and trigger interrupt
- OCR0A = 0xF9;               //Set value for time to compare   to ORC0A for 1ms = 249  (8 bits so max is 256)
- //[(Clock speed/Prescaler value)*Time   in seconds] - 1
- //[(16,000,000/64) * .001] - 1 = 249 = 1 millisecond
+// Set up time interrupt - millis() rolls over after 50 days so
+// we are using our own millisecond counter which we can reset at
+// the end of each day
+ TCCR0A = (1 << WGM01);        //Set the CTC mode Compare time and trigger interrupt
+ OCR0A = 0xF9;                 //Set value for time to compare to ORC0A for 1ms = 249  (8 bits so max is 256)
+//[(Clock speed/Prescaler value)*Time   in seconds] - 1
+//[(16,000,000/64) * .001] - 1 = 249 = 1 millisecond
  TIMSK0   |= (1 << OCIE0A);    //set timer compare interrupt
- TCCR0B |= (1 << CS01);      //Set   the prescale 1/64 clock
- TCCR0B |= (1 << CS00);      // ie 110 for last 3 bits
-  TCNT0  = 0;                 //initialize counter value to 0
- sei();                      //Enable   interrupt
+ TCCR0B |= (1 << CS01);        //Set the prescale 1/64 clock
+ TCCR0B |= (1 << CS00);        // ie 110 for last 3 bits
+ TCNT0  = 0;                   //initialize counter value to 0
+ sei();                        //Enable   interrupt
 
  pinMode(Clockpin,OUTPUT);
  pinMode(Buzzpin,OUTPUT);
@@ -84,10 +88,27 @@ void setup()
  date=01;
  month=01;
  year=23;
- currentMode = 0;
- 
+
+ // Print version
+ sprintf(buffer, " GOCLOCK ");
+ Datapin = 5;
+ PrintLine();
+ sprintf(buffer, " 1-0 0003");
+ Datapin = 8;
+ PrintLine();
+ //delay(3000);
+
+ timer = currentTime;
+  while(1)
+ {
+  elapsed = currentTime - timer;
+  if(elapsed >= 3000) break;
+ }
+
+ for (Datapin = 4; Datapin < 9; Datapin++) displayClear();
  DisplayTime();
  DisplayDate();
+ currentMode = 0;
  interrupts();
 }
 
@@ -107,23 +128,15 @@ ISR(TIMER0_COMPA_vect) {
 void loop()
 {
  int result;
- long elapsed;
-  
+
+ // Main control loop
  timer = currentTime;
  while(1)
  {
-  if (adjust >= 0) elapsed = currentTime - timer + adjust;
-  else elapsed = currentTime - timer - abs(adjust);
-  if(elapsed >= 1000)
+  elapsed = currentTime - timer;
+  if(elapsed >= 999)
   {
-   //Serial.print(hour);
-   //Serial.print(":");
-   //Serial.print(minute);
-   //Serial.print(":");
-   //Serial.println(second);
-   //Serial.flush();
-   
-   delay(100);
+   delay(50);
    timer = currentTime;
    ClockTick();
 
@@ -143,7 +156,7 @@ void loop()
     displaySpChar(0,Space);
    }
   }
-  delay(100);
+  delay(50);
   if (result = ButtonCheck())
   {
    switch(result)
@@ -442,10 +455,45 @@ void AdjustDateTime(void)
    cnt = 0;
   }
  }
+
+ // Press button to start clock
+ sprintf(buffer, "    PRESS");
+ Datapin = 5;
+ PrintLine();
+ sprintf(buffer, " TO START");
+ Datapin = 8;
+ PrintLine();
+
+ cnt = 0;
+ set = 0;
+ while(!set)
+ {
+  delay(100);
+  if(result = ButtonCheck())
+  {
+    break;
+  }
+  cnt++;
+  if(cnt == 500)
+  {
+    for (Datapin = 4; Datapin < 9; Datapin++) displayClear();
+  }
+  else if(cnt >= 1000)
+  {
+    sprintf(buffer, "    PRESS");
+    Datapin = 5;
+    PrintLine();
+    sprintf(buffer, " TO START");
+    Datapin = 8;
+    PrintLine();
+    cnt = 0;
+  }
+ }
  
  currentMode = 0; // Normal mode
  DisplayTime();
  DisplayDate();
+ tone(Buzzpin,5000,100);
 }
 
 
@@ -534,6 +582,21 @@ int ButtonCheck(void)
 }
 
 //******************************************
+// Clock adjust every hour
+//
+void ClockAdjust()
+{
+  currentMode = 1;
+  if (currentTime > abs(adjust) * multiplier)
+  {
+    if (adjust >= 0) currentTime = currentTime + (adjust * multiplier);
+    else currentTime = currentTime - (abs(adjust) * multiplier);
+  }
+  currentMode = 0;
+}
+
+
+//******************************************
 // Clock tick (every 1000ms)
 //
 void ClockTick()
@@ -545,6 +608,7 @@ void ClockTick()
  {
   second=0;
   minute++;
+  ClockAdjust();    // Adjust clock every minute
   if(minute==60)
   {
    minute=0;

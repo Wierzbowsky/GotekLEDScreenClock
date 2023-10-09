@@ -22,11 +22,11 @@
 //  License along with this library; if not, write to the Free Software
 //  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
-//Modified record:
-//Autor: 	Detlef Giessmann Germany 
-//Mail:		derek_cooper@hotmail.com
-//Comment:	Library to drive LEDC68 Gotek 3 digit LED display
-//IDE:  	Arduino-1.8.12
+// Modified record:
+// Autor: 	Detlef Giessmann Germany 
+// Mail:		derek_cooper@hotmail.com
+// Comment:	Library to drive LEDC68 Gotek 3 digit LED display
+// IDE:  	Arduino-1.8.12
 //
 // Modified record:
 // Autor:	Alex Wierzbowsky
