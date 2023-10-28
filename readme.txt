@@ -1,6 +1,7 @@
 --------------------------------------------------------------------------------
 Clock with calendar from Gotek's LED screen parts
 Copyright (c) 2022-2023 Wierzbowsky [RBSC]
+Version 1.0.0005
 --------------------------------------------------------------------------------
 
 About
@@ -86,25 +87,27 @@ Operation
 ---------
 
 The clock is controlled by a single pushbutton. There are 3 types of commands that you can execute. A short pushdown (less
-than 1 second push), a medium pushdown (over 1 second push) and a long pushdown (over 2 second push). It's all about time.
-Each operation is acknowledged by the clock with a beep of different frequency and duration.
+than 1 second push), a medium pushdown (over 1 second push) and a long pushdown (over 2 second push). It's all about timing.
+Each operation is acknowledged by the clock with a beep of different frequency and duration if beep is enabled.
 
 When the clock shows date and time, a short pushdown will change the brightness mode and disable the auto-brightness mode if
-if was previously set. There are 3 different brightness levels to select.
+if was previously set. There are 3 different brightness levels to select manually. The auto-brightness uses only the dimmest
+and the brightest levels.
 
 The medium pushdown will allow to enter the settings mode (see below). The long pushdown switches on the auto-brightness
-mode. The brightness will automatically change based on time of the day. From 8:00 to 20:00 normal brightness is set,
+mode. The brightness will automatically change based on time of the day. From 8:00 to 20:00 high brightness is set,
 otherwise low brightness is set.
 
-In the settings mode a short pushdown will change the value of hour, minute, day, month, year, select beep ON or beep OFF
-and allow to set the adjustment in the range of -15 to 15 (slow/fast) for the clock. A short pushdown will zero the value of
-seconds if seconds are blinking.
+The settings option can be selected by holding the pushbutton for over 1 second. In the settings mode a short pushdown will
+change the value of hour, minute, second (reset to zero), day, month, year, select beep ON or beep OFF, select auto-brightness
+ON of OFF, as well as allow to set the clock speed adjustment in the range of -15 to 15 (slow/fast). A short pushdown will
+zero the value of seconds if seconds are blinking, for other values it will either switch them between ON or OFF or advance
+the setting by 1. The medium pushdown will allow to select the setting that needs to be changed (hour, minute, day, etc.).
+The currently selected value will blink. The selection is done in a loop, for example: second->minute->hour->second. The long
+pushdown will switch to the next setup screen. That last screen of the setup will ask to press a button to start the clock
+with the selected settings. The following setup screens are available in version 1.0.0005:
 
-The medium pushdown will allow to select the setting that needs to be changed (hour, minute, day, etc.). The currently
-selected setting will blink. The selection is done in a loop, for example: second->minute->hour->second...
-
-The long pushdown will switch from time setting mode to date setting mode, then to beep setting mode and finally to the
-clock adjustment setting mode. After the last mode the newly-set date/time will be shown and the clock will start running.
+-> Set time -> Set date -> Set auto-brightness -> Set beep -> Set adjust -> Start clock
 
 It may be tricky to change settings for the first time, but you will get used to it pretty fast.
 
@@ -154,4 +157,3 @@ The RBSC's 3D model repository can be found here:
 https://www.thingiverse.com/groups/rbsc/things
 
 -= ! MSX FOREVER ! =-
-

@@ -8,9 +8,9 @@
 // Board:   	Arduino Nano
 // IDE:       Arduino
 // Function:	Clock and calendar
-// Date:		  06.10.2023
-// Version:   1.0 Build 0003
-// IDE:       Arduino-1.8.19
+// Date:		  28.10.2023
+// Version:   1.0 Build 0005
+// IDE:       Arduino-2.2.1
 //
 // Portions:  Paul Brace - Feb 2021
 //
@@ -40,16 +40,15 @@ uint8_t millisecond;
 uint8_t date;
 uint8_t month;
 uint8_t year;
-uint8_t currentbrt = 1;                 // Middle brightness by default
-unsigned long timer, elapsed;
-uint8_t beep = 0;
-uint8_t autobrt = 0;
-signed long adjust = 0;                 // ADJUST for inaccurate Arduino's clock, multiplied and added/deducted every minute
-signed long multiplier = 10;            // MULTIPLIER for clock adjust
+uint8_t currentbrt;                 // Middle brightness by default
+uint8_t beep;
+uint8_t autobrt;
+signed long adjust;                 // ADJUST for inaccurate Arduino's clock, multiplied and added/deducted every minute
+signed long multiplier;             // MULTIPLIER for clock adjust
+volatile unsigned long currentTime, currentMode;     // Duration in milliseconds from midnight; currentMode: 1 when time/date is set; 0 - clock is running
+unsigned long elapsed, timer;
+unsigned long pushdelay;
 char buffer[Maxchars+2];
-uint8_t currentMode = 0;                // 1 when time/date is set; 0 - clock is running
-volatile unsigned long currentTime = 0; //   Duration in milliseconds from midnight
-unsigned long pushdelay = 0;
 
 
 //******************************************
@@ -85,29 +84,40 @@ void setup()
  hour=0;
  minute=0;
  second=0;
- date=01;
- month=01;
+
+ date=28;
+ month=10;
  year=23;
 
+ // Variables
+ multiplier = 30;
+ pushdelay = 0;
+ currentMode = 0;
+ beep = 0;
+ autobrt = 0;
+ adjust = 0;
+ currentbrt = 1;
+ 
  // Print version
  sprintf(buffer, " GOCLOCK ");
  Datapin = 5;
  PrintLine();
- sprintf(buffer, " 1-0 0003");
+ sprintf(buffer, " 1-0 0005");
  Datapin = 8;
  PrintLine();
  //delay(3000);
 
  timer = currentTime;
-  while(1)
+ while(1)
  {
   elapsed = currentTime - timer;
-  if(elapsed >= 3000) break;
+  if (elapsed >= 3000) break;
  }
 
  for (Datapin = 4; Datapin < 9; Datapin++) displayClear();
  DisplayTime();
  DisplayDate();
+ timer = currentTime = 0;
  currentMode = 0;
  interrupts();
 }
@@ -134,27 +144,13 @@ void loop()
  while(1)
  {
   elapsed = currentTime - timer;
-  if(elapsed >= 999)
+  if (elapsed >= 1000)
   {
    delay(50);
    timer = currentTime;
+             
+   // Increase second counter
    ClockTick();
-
-   // Pulse dashes in clock
-   if(second%2)
-   {
-    Datapin=4;
-    displaySpChar(0,Minus);
-    Datapin=5;
-    displaySpChar(0,Minus);
-   }
-   else
-   {
-    Datapin=4;
-    displaySpChar(0,Space);
-    Datapin=5;
-    displaySpChar(0,Space);
-   }
   }
   delay(50);
   if (result = ButtonCheck())
@@ -163,10 +159,10 @@ void loop()
    {
     case 1:
     {
-     tone(Buzzpin,3000,100);
-     if(currentbrt == 7) currentbrt = 0;
-     else if(currentbrt == 0) currentbrt = 2;
-     else if(currentbrt == 2) currentbrt = 7;
+     if (beep) tone(Buzzpin,3000,100);
+     if (currentbrt == 7) currentbrt = 0;
+     else if (currentbrt == 0) currentbrt = 2;
+     else if (currentbrt == 2) currentbrt = 7;
      autobrt = 0;
      DisplayTime();
      DisplayDate();
@@ -174,18 +170,18 @@ void loop()
     }
     case 2:
     {
-     tone(Buzzpin,3000,250);
+     if (beep) tone(Buzzpin,3000,250);
      AdjustDateTime();
      break;
     }
     case 3:
     {
-     tone(Buzzpin,5000,100);
+     if (beep) tone(Buzzpin,5000,100);
      // Auto-control brightness
      autobrt = 1;
      for(Datapin = 3; Datapin < 9; Datapin++)
      {
-      if(hour > 9 and hour < 18)
+      if (hour > 9 and hour < 18)
       {
        currentbrt = 2;
        displaySet(currentbrt);
@@ -200,6 +196,8 @@ void loop()
      DisplayDate();
      break;
     }
+    default:
+     break;
    }
   }
  }
@@ -233,50 +231,50 @@ void AdjustDateTime(void)
  while(!set)
  {
   delay(100);
-  if(result = ButtonCheck())
+  if (result = ButtonCheck())
   {
    switch(result)
    {
     case 1:
     {
-     tone(Buzzpin,3000,50);
-     if(!param) second = 0;
-     else if(param == 1)
+     if (beep) tone(Buzzpin,3000,50);
+     if (!param) second = 0;
+     else if (param == 1)
      {
       minute++;
-      if(minute == 60) minute = 0;
+      if (minute == 60) minute = 0;
      }
-     else if(param == 2)
+     else if (param == 2)
      {
       hour++;
-      if(hour == 24) hour = 0;
+      if (hour == 24) hour = 0;
      }
      cnt = 1000;
      break;
     }
     case 2:
     {
-     tone(Buzzpin,3000,150);
+     if (beep) tone(Buzzpin,3000,150);
      param++;
-     if(param > 2) param = 0;
+     if (param > 2) param = 0;
      cnt = 1000;
      break;
     }
     case 3:
     {
-     tone(Buzzpin,3000,250);
+     if (beep) tone(Buzzpin,3000,250);
      set = 1;
      break;
     }    
    }
   }
   cnt++;
-  if(cnt == 500)
+  if (cnt == 500)
   {
    Datapin = 5 - param;
    displayClear();
   }
-  else if(cnt >= 1000)
+  else if (cnt >= 1000)
   {
    DisplayTime();
    cnt = 0;
@@ -297,59 +295,109 @@ void AdjustDateTime(void)
  while(!set)
  {
   delay(100);
-  if(result = ButtonCheck())
+  if (result = ButtonCheck())
   {
    switch(result)
    {
     case 1:
     {
-     tone(Buzzpin,3000,50);
-     if(!param)
+     if (beep) tone(Buzzpin,3000,50);
+     if (!param)
      {
       year++;
-      if(year > 50) year = 20;
+      if (year > 50) year = 20;
      }
-     else if(param == 1)
+     else if (param == 1)
      {
       month++;
-      if(month == 13) month = 1;
+      if (month == 13) month = 1;
      }
-     else if(param == 2)
+     else if (param == 2)
      {
-      if(year%4==0 and ((year%400==0) or (year%100!=0))) leapyear=1;
-      if((month==4 or month==6 or month==9 or month==11) and date==30) date=1;
-      else if(month==2 and ((leapyear==0 and date==28) or (leapyear==1 and date==29))) date=1;
+      if (year%4==0 and ((year%400==0) or (year%100!=0))) leapyear=1;
+      if ((month==4 or month==6 or month==9 or month==11) and date==30) date=1;
+      else if (month==2 and ((leapyear==0 and date==28) or (leapyear==1 and date==29))) date=1;
       else date++;
-      if(date==32) date=1;
+      if (date==32) date=1;
      }
      cnt = 1000;
      break;
     }
     case 2:
     {
-     tone(Buzzpin,3000,150);
+     if (beep) tone(Buzzpin,3000,150);
      param++;
-     if(param > 2) param = 0;
+     if (param > 2) param = 0;
      cnt = 1000;
      break;
     }
     case 3:
     {
-     tone(Buzzpin,3000,250);
+     if (beep) tone(Buzzpin,3000,250);
      set = 1;
      break;
     }    
    }
   }
   cnt++;
-  if(cnt == 500)
+  if (cnt == 500)
   {
    Datapin = 8 - param;
    displayClear();
   }
-  else if(cnt >= 1000)
+  else if (cnt >= 1000)
   {
    DisplayDate();
+   cnt = 0;
+  }
+ }
+
+ // Auto brightness
+ sprintf(buffer, " AUTO BRT");
+ Datapin = 5;
+ PrintLine();
+ if (autobrt) sprintf(buffer, "       ON");
+ else sprintf(buffer, "      OFF");
+ Datapin = 8;
+ PrintLine(); 
+
+ cnt = 0;
+ set = 0;
+ while(!set)
+ {
+  delay(100);
+  if (result = ButtonCheck())
+  {
+   switch(result)
+   {
+    case 1:
+    {
+     if (beep) tone(Buzzpin,3000,50);
+     if (!autobrt) autobrt = 1;
+     else autobrt = 0;
+     cnt = 1000;     
+     break;
+    }
+    case 3:
+    {
+     if (beep) tone(Buzzpin,3000,250);
+     set = 1;
+     break;
+    }    
+   }
+  }
+  cnt++;
+  if (cnt == 500)
+  {
+   Datapin = 8;
+   displayClear();
+  }
+  else if (cnt >= 1000)
+  {
+   if (autobrt) sprintf(buffer, "       ON");
+   else sprintf(buffer, "      OFF");
+   Datapin = 8;
+   PrintLine(); 
    cnt = 0;
   }
  }
@@ -368,33 +416,33 @@ void AdjustDateTime(void)
  while(!set)
  {
   delay(100);
-  if(result = ButtonCheck())
+  if (result = ButtonCheck())
   {
    switch(result)
    {
     case 1:
     {
-     tone(Buzzpin,3000,50);
-     if(!beep) beep = 1;
+     if (beep) tone(Buzzpin,3000,50);
+     if (!beep) beep = 1;
      else beep = 0;
      cnt = 1000;     
      break;
     }
     case 3:
     {
-     tone(Buzzpin,3000,250);
+     if (beep) tone(Buzzpin,3000,250);
      set = 1;
      break;
     }    
    }
   }
   cnt++;
-  if(cnt == 500)
+  if (cnt == 500)
   {
    Datapin = 8;
    displayClear();
   }
-  else if(cnt >= 1000)
+  else if (cnt >= 1000)
   {
    if (beep) sprintf(buffer, "       ON");
    else sprintf(buffer, "      OFF");
@@ -418,35 +466,35 @@ void AdjustDateTime(void)
  while(!set)
  {
   delay(100);
-  if(result = ButtonCheck())
+  if (result = ButtonCheck())
   {
    switch(result)
    {
     case 1:
     {
      currentMode = 1; // stop count
-     tone(Buzzpin,3000,50);
+     if (beep) tone(Buzzpin,3000,50);
      adjust++;
-     if(adjust > 15) adjust = -15;
+     if (adjust > 15) adjust = -15;
      cnt = 1000;
      currentMode = 0; // resume count
      break;
     }
     case 3:
     {
-     tone(Buzzpin,3000,250);
+     if (beep) tone(Buzzpin,3000,250);
      set = 1;
      break;
     }    
    }
   }
   cnt++;
-  if(cnt == 500)
+  if (cnt == 500)
   {
    Datapin = 8;
    displayClear();
   }
-  else if(cnt >= 1000)
+  else if (cnt >= 1000)
   {
    if (adjust >= 0) sprintf(buffer, "      %03d", adjust);
    else sprintf(buffer, "     -%03d", abs(adjust));
@@ -469,16 +517,16 @@ void AdjustDateTime(void)
  while(!set)
  {
   delay(100);
-  if(result = ButtonCheck())
+  if (result = ButtonCheck())
   {
     break;
   }
   cnt++;
-  if(cnt == 500)
+  if (cnt == 500)
   {
     for (Datapin = 4; Datapin < 9; Datapin++) displayClear();
   }
-  else if(cnt >= 1000)
+  else if (cnt >= 1000)
   {
     sprintf(buffer, "    PRESS");
     Datapin = 5;
@@ -489,11 +537,11 @@ void AdjustDateTime(void)
     cnt = 0;
   }
  }
- 
+ timer = currentTime = 0; 
  currentMode = 0; // Normal mode
  DisplayTime();
  DisplayDate();
- tone(Buzzpin,5000,100);
+ if (beep) tone(Buzzpin,5000,100);
 }
 
 
@@ -529,6 +577,22 @@ void DisplayTime()
  Datapin = 5;
  displaySet(currentbrt);
  PrintLine();
+
+ // Pulse dashes in clock
+ if (second%2)
+ {
+  Datapin=4;
+  displaySpChar(0,Minus);
+  Datapin=5;
+  displaySpChar(0,Minus);
+ }
+ else
+ {
+  Datapin=4;
+  displaySpChar(0,Space);
+  Datapin=5;
+  displaySpChar(0,Space);
+ }
 }
 
 //******************************************
@@ -542,7 +606,7 @@ void DisplayDate()
 
  for(cnt = 0; cnt < 3; cnt++) monthname[cnt] = MonthTab[cnt + ((month - 1) * 3)];
  monthname[3] = '\0';
- if(date > 9) sprintf(buffer, "%02d %s %02d",date,monthname,year);
+ if (date > 9) sprintf(buffer, "%02d %s %02d",date,monthname,year);
  else sprintf(buffer, " %d %s %02d",date,monthname,year);
  Datapin = 8;
  displaySet(currentbrt);
@@ -557,17 +621,17 @@ int ButtonCheck(void)
  if (digitalRead(Btnpin) == LOW) pushdelay++;
  if (pushdelay > 0 and digitalRead(Btnpin) == HIGH)
  {
-  if((pushdelay <= 500))
+  if ((pushdelay <= 500))
   {
     pushdelay = 0;
     return 1; // short press
   }
-  else if(pushdelay <= 1000)
+  else if (pushdelay <= 1000)
   {
     pushdelay = 0;
     return 2;  // long press
   }
-  else if(pushdelay <= 3000)
+  else if (pushdelay <= 3000)
   {
     pushdelay = 0;
     return 3;  // very long press
@@ -586,66 +650,68 @@ int ButtonCheck(void)
 //
 void ClockAdjust()
 {
-  currentMode = 1;
-  if (currentTime > abs(adjust) * multiplier)
+  if (adjust != 0)
   {
-    if (adjust >= 0) currentTime = currentTime + (adjust * multiplier);
-    else currentTime = currentTime - (abs(adjust) * multiplier);
+    currentMode = 1;
+    if (adjust < 0)
+    {
+      if (currentTime >= abs(adjust) * multiplier) currentTime = currentTime - abs(adjust) * multiplier;
+      else delay(abs(adjust) * multiplier);
+    }
+    else if (adjust > 0) currentTime = currentTime + abs(adjust) * multiplier;
+    currentMode = 0;
   }
-  currentMode = 0;
 }
-
 
 //******************************************
 // Clock tick (every 1000ms)
 //
 void ClockTick()
 {
-
  // Clock advance by 1 second
  second++;
- if(second==60)
+ if (second==60)
  {
   second=0;
   minute++;
-  ClockAdjust();    // Adjust clock every minute
-  if(minute==60)
+  ClockAdjust();    // Adjust clock every defined interval
+
+  // Check if auto-brightness mode is on
+  if (autobrt)
+  {
+   for(Datapin = 3; Datapin < 9; Datapin++)
+   {
+    if (hour > 9 and hour < 18)
+    {
+     currentbrt = 2;
+     displaySet(currentbrt);
+    }
+    else
+    {
+     currentbrt = 0;
+     displaySet(currentbrt);
+    }
+   }
+   DisplayDate();
+  }
+  
+  if (minute==60)
   {
    minute=0;
    hour++;
    if (beep and (hour >= 8 and hour <= 20)) tone(Buzzpin,3000,50); // beep every hour during daytime if on
-   if(hour==24)
+   if (hour==24)
    {
      hour=0;
      currentMode = 1;
-     timer = 0;
-     currentTime = 0; // Reset counter daily
+     timer = currentTime = 0; // Reset counter daily
      currentMode = 0;
      DateTick();
    }
   }
  }
-
- // Check if auto-brightness mode is on
- if(autobrt)
- {
-  for(Datapin = 3; Datapin < 9; Datapin++)
-  {
-   if(hour > 9 and hour < 18)
-   {
-    currentbrt = 2;
-    displaySet(currentbrt);
-   }
-   else
-   {
-    currentbrt = 0;
-    displaySet(currentbrt);
-   }
-  }
-  DisplayDate();
- }
-
  DisplayTime();
+ DisplayDate();
 }
 
 //******************************************
@@ -655,24 +721,24 @@ void DateTick()
 {
  uint8_t leapyear=0;
  
- if(year%4==0 and ((year%400==0) or (year%100!=0))) leapyear=1;
- if((month==4 or month==6 or month==9 or month==11) and date==30)
+ if (year%4==0 and ((year%400==0) or (year%100!=0))) leapyear=1;
+ if ((month==4 or month==6 or month==9 or month==11) and date==30)
  {
   date=1;
   month++;
  }
- else if(month==2 and ((leapyear==0 and date==28) or (leapyear==1 and date==29)))
+ else if (month==2 and ((leapyear==0 and date==28) or (leapyear==1 and date==29)))
  {
   date=1;
   month++;
  }
  else date++;
- if(date==32)
+ if (date==32)
  {
   date=1;
   month++;
  }
- if(month==13)
+ if (month==13)
  {
   date=1;
   month=1;
@@ -690,7 +756,7 @@ int writeByte(int8_t wr_data)
   for(i=0;i<8;i++)        //sent 8bit data
   { 
     digitalWrite(Clockpin,LOW);
-    if(wr_data & 0x01)digitalWrite(Datapin,HIGH);//LSB first
+    if (wr_data & 0x01)digitalWrite(Datapin,HIGH);//LSB first
     else digitalWrite(Datapin,LOW);
     wr_data >>= 1;
     digitalWrite(Clockpin,HIGH);
@@ -821,9 +887,9 @@ void displayChar(uint8_t dig, uint8_t letter)
   stop();           //
   start();          //
   writeByte(STARTADDR + dig);// digit pos 0-2
-  if(letter >= 'A' and letter <= 'Z') writeByte(CharTab[letter - 0x41]);  // A-Z
-  else if(letter >='0' and letter <= '9') writeByte(NumTab[letter - 0x30]); // 0-9
-  else if(letter =='-') writeByte(SpCharTab[2]); // -
+  if (letter >= 'A' and letter <= 'Z') writeByte(CharTab[letter - 0x41]);  // A-Z
+  else if (letter >='0' and letter <= '9') writeByte(NumTab[letter - 0x30]); // 0-9
+  else if (letter =='-') writeByte(SpCharTab[2]); // -
   else writeByte(NumTab[16]);  // space
   stop();            //
   start();          //
@@ -863,8 +929,8 @@ void displayDec(uint16_t num)
 //
 void displayDecNZ(uint16_t num)
 {
-  if(num > 99) displayNum(0, (num/10/10) % 10);
-  if(num > 9) displayNum(1, (num/10) % 10);
+  if (num > 99) displayNum(0, (num/10/10) % 10);
+  if (num > 9) displayNum(1, (num/10) % 10);
   displayNum(2, num % 10);
 }
 
@@ -873,7 +939,7 @@ void displayDecNZ(uint16_t num)
 //
 void displayDec1Z(uint16_t num)
 {
-  if(num > 99) displayNum(0, (num/10/10) % 10);
+  if (num > 99) displayNum(0, (num/10/10) % 10);
   displayNum(1, (num/10) % 10);
   displayNum(2, num % 10);
 }
@@ -905,7 +971,7 @@ void displayDP(uint8_t dp)
 //
 void displayHex(uint16_t num)
 {
- if(num > 0xFFF)
+ if (num > 0xFFF)
  {
   displaySpChar(0, Minus);
   displaySpChar(1, Minus);
@@ -921,7 +987,7 @@ void displayHex(uint16_t num)
 
 void displayHexNZ(uint16_t num)
 {
- if(num > 0xFFF)
+ if (num > 0xFFF)
  {
   displaySpChar(0, Minus);
   displaySpChar(1, Minus);
@@ -929,8 +995,8 @@ void displayHexNZ(uint16_t num)
  }
  else
  { 
-  if(num > 0xFF) displayNum(0, (num/16/16) % 16);
-  if(num > 0x0F) displayNum(1, (num/16) % 16);
+  if (num > 0xFF) displayNum(0, (num/16/16) % 16);
+  if (num > 0x0F) displayNum(1, (num/16) % 16);
   displayNum(2, num % 16);
  }
 }
@@ -942,7 +1008,7 @@ void displayInteger(uint16_t number)
 {
  uint8_t i;   
 
- if(number > 999)
+ if (number > 999)
  {
   displaySpChar(0, Minus);
   displaySpChar(1, Minus);
