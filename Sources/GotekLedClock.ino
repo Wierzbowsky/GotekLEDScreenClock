@@ -9,7 +9,7 @@
 // IDE:       Arduino
 // Function:	Clock and calendar
 // Date:		  28.10.2023
-// Version:   1.0 Build 0005
+// Version:   1.0 Build 0006
 // IDE:       Arduino-2.2.1
 //
 // Portions:  Paul Brace - Feb 2021
@@ -40,7 +40,7 @@ uint8_t millisecond;
 uint8_t date;
 uint8_t month;
 uint8_t year;
-uint8_t currentbrt;                 // Middle brightness by default
+uint8_t currentbrt, changebrt;      // Brightness and change brightness control
 uint8_t beep;
 uint8_t autobrt;
 signed long adjust;                 // ADJUST for inaccurate Arduino's clock, multiplied and added/deducted every minute
@@ -85,7 +85,7 @@ void setup()
  minute=0;
  second=0;
 
- date=28;
+ date=30;
  month=10;
  year=23;
 
@@ -96,13 +96,14 @@ void setup()
  beep = 0;
  autobrt = 0;
  adjust = 0;
- currentbrt = 1;
+ currentbrt = 0;
+ changebrt = 0;
  
  // Print version
  sprintf(buffer, " GOCLOCK ");
  Datapin = 5;
  PrintLine();
- sprintf(buffer, " 1-0 0005");
+ sprintf(buffer, " 1-0 0006");
  Datapin = 8;
  PrintLine();
  //delay(3000);
@@ -146,12 +147,12 @@ void loop()
   elapsed = currentTime - timer;
   if (elapsed >= 1000)
   {
-   delay(50);
    timer = currentTime;
-             
-   // Increase second counter
-   ClockTick();
+   ClockTick();       // Once per second
+   DisplayTime();
+   DisplayDate();
   }
+
   delay(50);
   if (result = ButtonCheck())
   {
@@ -159,11 +160,13 @@ void loop()
    {
     case 1:
     {
+     autobrt = 0;
+     changebrt = 0;
      if (beep) tone(Buzzpin,3000,100);
      if (currentbrt == 7) currentbrt = 0;
      else if (currentbrt == 0) currentbrt = 2;
      else if (currentbrt == 2) currentbrt = 7;
-     autobrt = 0;
+     for(Datapin = 3; Datapin < 9; Datapin++) displaySet(currentbrt);
      DisplayTime();
      DisplayDate();
      break;
@@ -171,29 +174,14 @@ void loop()
     case 2:
     {
      if (beep) tone(Buzzpin,3000,250);
-     AdjustDateTime();
+     MainSetup();
      break;
     }
     case 3:
     {
      if (beep) tone(Buzzpin,5000,100);
-     // Auto-control brightness
-     autobrt = 1;
-     for(Datapin = 3; Datapin < 9; Datapin++)
-     {
-      if (hour > 9 and hour < 18)
-      {
-       currentbrt = 2;
-       displaySet(currentbrt);
-      }
-      else
-      {
-       currentbrt = 0;
-       displaySet(currentbrt);
-      }
-     }
-     DisplayTime();
-     DisplayDate();
+     autobrt = 1;                       // Auto-control brightness
+     changebrt = 1;
      break;
     }
     default:
@@ -204,9 +192,9 @@ void loop()
 }
 
 //******************************************
-// Adjust date/time
+// Main setup
 //
-void AdjustDateTime(void)
+void MainSetup(void)
 {
  uint16_t cnt;
  uint8_t shift;
@@ -224,6 +212,10 @@ void AdjustDateTime(void)
  sprintf(buffer, " SET TIME");
  Datapin = 8;
  PrintLine();
+ Datapin=4;
+ displaySpChar(0,Space);
+ Datapin=5;
+ displaySpChar(0,Space);
 
  param = 0;
  Datapin = 5;
@@ -572,10 +564,9 @@ void DisplayTime()
 {
  uint8_t cnt;
  uint8_t shift;
-  
+
  sprintf(buffer, " %02d %02d %02d",hour,minute,second);
  Datapin = 5;
- displaySet(currentbrt);
  PrintLine();
 
  // Pulse dashes in clock
@@ -609,7 +600,6 @@ void DisplayDate()
  if (date > 9) sprintf(buffer, "%02d %s %02d",date,monthname,year);
  else sprintf(buffer, " %d %s %02d",date,monthname,year);
  Datapin = 8;
- displaySet(currentbrt);
  PrintLine();
 }
 
@@ -677,13 +667,13 @@ void ClockTick()
   ClockAdjust();    // Adjust clock every defined interval
 
   // Check if auto-brightness mode is on
-  if (autobrt)
+  if (autobrt and changebrt)
   {
    for(Datapin = 3; Datapin < 9; Datapin++)
    {
     if (hour > 9 and hour < 18)
     {
-     currentbrt = 2;
+     currentbrt = 7;
      displaySet(currentbrt);
     }
     else
@@ -692,7 +682,7 @@ void ClockTick()
      displaySet(currentbrt);
     }
    }
-   DisplayDate();
+   changebrt = 0;
   }
   
   if (minute==60)
@@ -710,8 +700,6 @@ void ClockTick()
    }
   }
  }
- DisplayTime();
- DisplayDate();
 }
 
 //******************************************
