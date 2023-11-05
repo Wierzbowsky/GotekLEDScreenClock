@@ -8,8 +8,8 @@
 // Board:   	Arduino Nano
 // IDE:       Arduino
 // Function:	Clock and calendar
-// Date:		  28.10.2023
-// Version:   1.0 Build 0006
+// Date:		  06.11.2023
+// Version:   1.0 Build 0007
 // IDE:       Arduino-2.2.1
 //
 // Portions:  Paul Brace - Feb 2021
@@ -85,12 +85,12 @@ void setup()
  minute=0;
  second=0;
 
- date=30;
- month=10;
+ date=06;
+ month=11;
  year=23;
 
  // Variables
- multiplier = 30;
+ multiplier = 10;
  pushdelay = 0;
  currentMode = 0;
  beep = 0;
@@ -103,7 +103,7 @@ void setup()
  sprintf(buffer, " GOCLOCK ");
  Datapin = 5;
  PrintLine();
- sprintf(buffer, " 1-0 0006");
+ sprintf(buffer, " 1-0 0007");
  Datapin = 8;
  PrintLine();
  //delay(3000);
