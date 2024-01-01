@@ -27,7 +27,7 @@ up from a USB2 port is fine.
 Assembling
 ----------
 
-Take 6 orginal Gotek LED screen boards and desolder the LED screen, the controller chip and the capacitor. The solder the
+Take 6 orginal Gotek LED screen boards and desolder the LED screen, the controller chip and the capacitor. Then solder the
 chip, capacitor and the screen onto the small board (you can order it from jlcpcb.com factory using the provided Gerber
 files).
 
